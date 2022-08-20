@@ -9,7 +9,7 @@ Parameters:
     Type: String
     Default: 10.0.0.0/20
 
-  PublicSubnetCidr:
+  PrivateSubnetCidr:
     Type: String
     Default: 10.0.0.0/24
 
@@ -74,16 +74,16 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
 
 ###########
-# Public Subnet
+# Private Subnet
 ###########
 
-  PublicSubnet:
+  PrivateSubnet:
     Type: AWS::EC2::Subnet
     DependsOn: LabVPC
     Properties:
       VpcId: !Ref LabVPC
-      MapPublicIpOnLaunch: true
-      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: false
+      CidrBlock: !Ref PrivateSubnetCidr
       AvailabilityZone: !Select 
         - 0
         - !GetAZs 
@@ -96,10 +96,10 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
       - PublicRouteTable
-      - PublicSubnet
+      - PrivateSubnet
     Properties:
       RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PrivateSubnet
 
 ###########
 # App Security Group
@@ -114,19 +114,12 @@ Resources:
       VpcId: !Ref LabVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: '80'
+          ToPort: '80'
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: App
-
-###########
-# S3 Bucket
-###########
-
-  S3Bucket:
-    Type: AWS::S3::Bucket
 
 ###########
 # EC2 instance
@@ -137,12 +130,13 @@ Resources:
     Properties:
       InstanceType: t2.micro
       ImageId: !Ref AmazonLinuxAMIID
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PrivateSubnet
       SecurityGroupIds:
         - !Ref AppSecurityGroup
       Tags:
         - Key: Name
           Value: App Server
+      KeyName: vockey
 
 
 ###########
@@ -153,3 +147,7 @@ Outputs:
 
   LabVPCDefaultSecurityGroup:
     Value: !Sub ${LabVPC.DefaultSecurityGroup}
+
+  PublicIP:
+    Description: EC2 Instance Public IP
+    Value: !GetAtt EC2Instance.PublicIp
